@@ -453,6 +453,39 @@ function createTray() {
                 }
             }
         },
+        {
+            label: 'Check for App Updates',
+            click: async () => {
+                if (process.argv.includes('--dev')) {
+                    dialog.showMessageBox({
+                        type: 'info',
+                        title: 'Updates Disabled',
+                        message: 'Auto-updates are disabled in development mode.',
+                        buttons: ['OK']
+                    });
+                    return;
+                }
+                try {
+                    const result = await autoUpdater.checkForUpdates();
+                    if (!result || !result.updateInfo) {
+                        dialog.showMessageBox({
+                            type: 'info',
+                            title: 'No Updates',
+                            message: 'You are already running the latest version.',
+                            buttons: ['OK']
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error checking for app updates:', err);
+                    dialog.showMessageBox({
+                        type: 'error',
+                        title: 'Update Check Failed',
+                        message: 'Failed to check for updates. Please try again later.',
+                        buttons: ['OK']
+                    });
+                }
+            }
+        },
         { type: 'separator' },
         {
             label: 'Quit',
