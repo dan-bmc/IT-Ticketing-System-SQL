@@ -1,6 +1,6 @@
 {
   "name": "it-ticketing",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "IT Helpdesk System",
   "main": "src/main.js",
   "scripts": {
