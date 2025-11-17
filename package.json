@@ -1,6 +1,6 @@
 {
   "name": "it-ticketing",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "IT Helpdesk System",
   "main": "src/main.js",
   "scripts": {
@@ -41,6 +41,13 @@
         "filter": [
           "**/*"
         ]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "dan-bmc",
+        "repo": "IT-Ticketing-System-SQL"
       }
     ],
     "win": {

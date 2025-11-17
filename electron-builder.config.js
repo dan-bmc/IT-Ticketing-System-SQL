@@ -14,7 +14,7 @@ module.exports = {
       target: "nsis",
       arch: ["x64"]
     }],
-    artifactName: "IT-Ticketing-Setup.${ext}",
+    artifactName: "IT-Help-Desk-Setup-${version}.${ext}",
     publisherName: "IT Help Desk"
   },
   nsis: {

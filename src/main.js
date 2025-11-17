@@ -18,6 +18,11 @@ app.setAppUserModelId('IT Help Desk');
 // Configure auto-updater
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'dan-bmc',
+    repo: 'IT-Ticketing-System-SQL'
+});
 
 // Auto-updater event handlers
 autoUpdater.on('checking-for-update', () => {
