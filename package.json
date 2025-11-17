@@ -1,0 +1,76 @@
+{
+  "name": "it-ticketing",
+  "version": "1.0.3",
+  "description": "IT Helpdesk with sql connection (Electron)",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "dev": "electron . --dev",
+    "dist": "electron-builder --publish=never",
+    "publish": "electron-builder --publish=always"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dan-bmc/IT-Ticketing-System-SQL.git"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2",
+    "mssql": "^10.0.1"
+  },
+  "build": {
+    "appId": "com.shahidan.it-app",
+    "productName": "IT Help Desk",
+    "directories": {
+      "output": "Installer"
+    },
+    "files": [
+      "src/**/*",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "src/assets/chat.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "src/assets/chat.ico",
+      "uninstallerIcon": "src/assets/chat.ico",
+      "installerHeaderIcon": "src/assets/chat.ico",
+      "deleteAppDataOnUninstall": true
+    },
+    "mac": {
+      "icon": "src/assets/chat.icns"
+    },
+    "linux": {
+      "icon": "assets/chat.png"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

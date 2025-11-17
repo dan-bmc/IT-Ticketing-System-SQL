@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Help Desk Sidebar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add PDF libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Theme Initialization -->
+    <script>
+        // Initialize theme as early as possible
+        const defaultTheme = {
+            primaryColor: '#4f46e5',
+            primaryHover: '#4338ca',
+            secondaryColor: '#7c3aed',
+            successColor: '#10b981',
+            themeMode: 'light'
+        };
+
+        function initializeTheme() {
+            try {
+                const savedTheme = localStorage.getItem('helpDeskTheme');
+                const theme = savedTheme ? JSON.parse(savedTheme) : defaultTheme;
+                
+                const root = document.documentElement;
+                root.style.setProperty('--primary-color', theme.primaryColor);
+                root.style.setProperty('--primary-hover', theme.primaryHover);
+                root.style.setProperty('--secondary-color', theme.secondaryColor);
+                root.style.setProperty('--success-color', theme.successColor);
+
+                const savedThemeMode = localStorage.getItem('themeMode');
+                if (savedThemeMode && savedThemeMode !== 'light') {
+                    root.setAttribute('data-theme', savedThemeMode);
+                }
+            } catch (error) {
+                console.error('Error initializing theme:', error);
+            }
+        }
+        
+        // Run immediately
+        initializeTheme();
+
+        // Pre-fill login form as early as possible
+        function preFillLoginForm() {
+            const username = localStorage.getItem('rememberedUsername') || 
+                           (localStorage.getItem('rememberedUser') ? 
+                            JSON.parse(localStorage.getItem('rememberedUser')).username : null);
+            const wasRemembered = localStorage.getItem('rememberedUsername') !== null;
+            
+            if (username) {
+                // Wait for form to be in DOM, then pre-fill username and checkbox state
+                const checkForm = setInterval(() => {
+                    const usernameInput = document.getElementById('username');
+                    const rememberCheckbox = document.getElementById('rememberMe');
+                    if (usernameInput && rememberCheckbox) {
+                        usernameInput.value = username;
+                        rememberCheckbox.checked = wasRemembered;
+                        clearInterval(checkForm);
+                    }
+                }, 10);
+                // Stop trying after 2 seconds
+                setTimeout(() => clearInterval(checkForm), 2000);
+            }
+        }
+        
+        // Start pre-fill as soon as this script runs
+        document.addEventListener('DOMContentLoaded', preFillLoginForm);
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            position: relative;
+        }
+
+        :root {
+            --bg-color: #f0f4f8;
+            --sidebar-bg: #fff;
+            --text-color: #1a202c;
+            --border-color: #e2e8f0;
+            --primary-color: #4f46e5;
+            --secondary-color: #7c3aed;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --sidebar-bg: #2d2d2d;
+            --text-color: #e2e8f0;
+            --border-color: #404040;
+            --primary-color: #2d2d2d;
+            --secondary-color: #404040;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .sidebar {
+            width: 370px;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 #f0f4f8;
+            transition: transform 0.3s ease-in-out;
+            position: fixed;
+            right: 0;
+            top: 0;
+            margin: 0;
+            padding: 0;
+            background-color: var(--sidebar-bg);
+            z-index: 1000;
+            box-sizing: border-box;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(100%);
+        }
+
+        input[readonly] {
+            background-color: #f9fafb;
+            cursor: not-allowed;
+        }
+
+        input[readonly]:focus {
+            border-color: #d1d5db;
+
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #f0f4f8;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e0;
+            border-radius: 3px;
+        }
+
+
+
+        .ticket-header {
+            background: linear-gradient(135deg, var(--primary-color, #4f46e5) 0%, var(--secondary-color, #7c3aed) 100%);
+            width: 100%;
+            margin: 0;
+            padding: 1.25rem;
+            box-sizing: border-box;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .success-message {
+            transform: translateY(-100%);
+            transition: transform 0.5s ease-in-out;
+            background: linear-gradient(135deg, var(--primary-color, #4f46e5) 0%, var(--secondary-color, #7c3aed) 100%);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .success-message.show {
+            transform: translateY(0);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        #imagePreview {
+            transition: all 0.3s ease;
+        }
+
+        #previewImage,
+        #modalImage {
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #modalImageContainer {
+            background: linear-gradient(45deg, #f8fafc 25%, transparent 25%),
+                linear-gradient(-45deg, #f8fafc 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #f8fafc 75%),
+                linear-gradient(-45deg, transparent 75%, #f8fafc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+
+        /* Add to existing CSS */
+        #imageViewerModal .modal {
+            align-items: flex-start;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        #fullSizeImage {
+            cursor: zoom-in;
+            transition: transform 0.3s ease;
+        }
+
+        #fullSizeImage.zoomed {
+            cursor: zoom-out;
+            transform: scale(1.5);
+        }
+
+        .image-clickable {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .image-clickable:hover {
+            transform: scale(1.05);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .reopen-button {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+            background-color: var(--primary-color, #4f46e5);
+        }
+
+        .reopen-button.visible {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        .primary-button {
+            background-color: var(--primary-color, #4f46e5);
+        }
+
+        .primary-button:hover {
+            background-color: var(--primary-hover, #4338ca);
+        }
+
+        .tab-button {
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        .tab-button:hover {
+            color: var(--primary-color, #4f46e5);
+            background-color: rgba(79, 70, 229, 0.05);
+        }
+
+        .active-tab {
+            color: var(--primary-color, #4f46e5);
+            border-bottom: 3px solid var(--primary-color, #4f46e5);
+            background-color: rgba(79, 70, 229, 0.08);
+        }
+
+        .color-swatch {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .color-swatch.selected {
+            position: relative;
+        }
+        .color-swatch.selected::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px currentColor;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Enhanced form styles */
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+        }
+
+        /* Loading animation */
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Smooth transitions */
+        .transition-colors {
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Scrollbar styling for better UX */
+        .max-h-48::-webkit-scrollbar,
+        .max-h-60::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .max-h-48::-webkit-scrollbar-track,
+        .max-h-60::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .max-h-48::-webkit-scrollbar-thumb,
+        .max-h-60::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 2px;
+        }
+
+        .max-h-48::-webkit-scrollbar-thumb:hover,
+        .max-h-60::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Auto-refresh notification styles */
+        #autoRefreshNotification {
+            transition: all 0.3s ease-in-out;
+            transform: translateY(20px);
+            opacity: 0;
+        }
+
+        /* Enhanced pulse animation for badge */
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+            }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Loading animation for refresh button */
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Add to existing CSS */
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+
+        /* Ensure badge is properly positioned */
+        .relative {
+            position: relative;
+        }
+
+        /* Enhanced User Management Styles */
+        .user-card {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .user-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-role,
+        .toggle-user,
+        .delete-user {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .user-role:focus,
+        .toggle-user:focus,
+        .delete-user:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--primary-color, #4f46e5);
+        }
+
+        /* Status badges */
+        .status-badge {
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        /* Role badges */
+        .role-badge {
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        /* Add to existing CSS */
+        .duration-normal {
+            color: #10b981;
+            font-weight: 500;
+        }
+
+        .duration-overdue {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .duration-warning {
+            color: #f59e0b;
+            font-weight: 500;
+        }
+
+        /* Enhanced filter styles */
+        #departmentFilter {
+
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+
+        }
+
+        /* Custom dropdown styling for better appearance */
+        .custom-select {
+
+            position: relative;
+            max-width: 150px;
+
+        }
+
+        .custom-select select {
+
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 24px;
+            cursor: pointer;
+            background: white;
+
+        }
+
+        .custom-select::after {
+            content: "▼";
+            font-size: 10px;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #6b7280;
+        }
+
+        /* Tooltip for truncated text */
+        .filter-tooltip {
+            position: relative;
+        }
+
+        .filter-tooltip:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #374151;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 5px;
+        }
+
+        /* Compact filter layout */
+        .compact-filters {
+
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: nowrap;
+
+        }
+
+        .compact-filters .custom-select {
+
+            flex-shrink: 1;
+            min-width: 120px;
+
+        }
+
+        /* Enhanced filter dropdown styles */
+        .custom-select {
+
+            position: relative;
+            min-width: 180px;
+            /* Increased minimum width */
+            max-width: 250px;
+            /* Maximum width to prevent overflow */
+
+        }
+
+        .custom-select select {
+
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 24px;
+            cursor: pointer;
+            background: white;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+
+        }
+
+        .custom-select::after {
+            content: "▼";
+            font-size: 10px;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #6b7280;
+        }
+
+        /* Enhanced dropdown options */
+        .custom-select select option {
+            padding: 8px 12px;
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        /* Improved filter layout */
+        .compact-filters {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: nowrap;
+        }
+
+        .compact-filters .custom-select {
+            flex-shrink: 1;
+            min-width: 180px;
+        }
+
+        /* Better dropdown for long text */
+        .wide-dropdown {
+            min-width: 220px;
+        }
+
+        /* Ensure dropdown doesn't get too wide on small screens */
+        @media (max-width: 400px) {
+            .compact-filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .compact-filters .custom-select {
+                min-width: auto;
+                max-width: none;
+            }
+        }
+
+        /* Tooltip for truncated selected value */
+        .filter-tooltip {
+            position: relative;
+        }
+
+        .filter-tooltip:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #374151;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 5px;
+        }
+
+        #departmentFilter:disabled {
+            background-color: #f9fafb;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Notification toggle styles */
+        /* Smooth transitions for toggles */
+        .peer~div {
+            transition: all 0.3s ease;
+        }
+
+        .peer~div:after {
+            transition: all 0.3s ease;
+        }
+
+        /* Prevent shadow animation on ticket cards - no transition on box-shadow */
+        .border-l-4 {
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+            transition: transform 0.2s ease !important;
+        }
+
+        .border-l-4:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar bg-white shadow-lg border-l border-gray-200 w-full">
+        <div class="success-message fixed top-0 right-0 left-0 text-white text-center py-2 z-50 text-sm"
+            id="successMessage">
+            <p id="successMessageText"></p>
+        </div>
+
+        <div class="ticket-header w-full py-4 px-4 text-white">
+            <div class="flex items-center justify-between w-full">
+                <div>
+                    <h1 class="text-lg font-bold">IT Help Desk</h1>
+                    <p class="text-xs text-indigo-100">by Shahidan</p>
+                    <p class="text-xs text-indigo-100">Support Ticket System</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="userInfo" class="hidden mr-2">
+                        <div class="flex items-center">
+                            <span id="userRole"
+                                class="text-xs bg-white text-indigo-700 px-2 py-0.5 rounded-full font-medium"></span>
+                        </div>
+                    </div>
+
+                    <!-- Refresh Button -->
+                    <button id="refreshBtn" 
+                        class="primary-button rounded-full p-2 text-white focus:outline-none transition-colors"
+                        title="Refresh the page">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+
+                    <!-- Theme Customization Button (All Roles) -->
+                    <button id="themeCustomizeBtn" 
+                        class="primary-button rounded-full p-2 text-white focus:outline-none transition-colors hidden"
+                        title="Customize theme">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L9 19.5H5.5v-3.5L16.732 3.732z"/>
+                        </svg>
+                    </button>
+
+                    <button id="closeAppBtn"
+                        class="primary-button rounded-full p-1 text-white focus:outline-none"
+                        title="Close sidebar">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginContent" class="p-4">
+            <div class="mb-4 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor" style="color: var(--primary-color, #4f46e5)">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <h2 class="mt-2 text-lg font-medium text-gray-900">Login to Help Desk</h2>
+                <p class="text-xs text-gray-500">Enter your credentials to access the system</p>
+            </div>
+
+            <form id="loginForm" class="space-y-3">
+                <div>
+                    <label for="username" class="block text-xs font-medium text-gray-700">Username</label>
+                    <input type="text" id="username" name="username" required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-3 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Enter your username">
+                </div>
+
+                <div>
+                    <label for="password" class="block text-xs font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-3 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Enter your password">
+                </div>
+
+                <div class="flex items-center">
+                    <input id="rememberMe" name="rememberMe" type="checkbox"
+                        class="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <label for="rememberMe" class="ml-2 block text-xs text-gray-900">
+                        Remember me
+                    </label>
+                </div>
+
+                <div id="loginError" class="text-red-500 text-xs hidden">
+                    Invalid login credentials. Please try again.
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" id="loginBtn"
+                        class="w-full primary-button py-1.5 px-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-1">
+                        <span id="loginBtnText">Login</span>
+                        <span id="loginSpinner" class="loading hidden"></span>
+                    </button>
+                </div>
+
+                <div class="text-center text-xs text-gray-500 pt-2">
+                    <p>Contact IT support if you don't have an account</p>
+                </div>
+            </form>
+
+
+        </div>
+
+        <!-- Main App Content (after login) -->
+        <div id="appContent" class="hidden">
+            <!-- Theme Customization Modal (Staff Only) -->
+            <div id="themeCustomizationModal" class="hidden fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                    <!-- Header -->
+                    <div class="bg-gradient-to-r text-white px-6 py-5 flex items-center justify-between" style="background: linear-gradient(135deg, var(--primary-color, #4f46e5) 0%, var(--secondary-color, #7c3aed) 100%);">
+                        <div>
+                            <h3 class="text-lg font-bold">Theme Customization</h3>
+                            <p class="text-xs opacity-90 mt-0.5">Personalize your interface</p>
+                        </div>
+                        <button id="closeThemeModal" class="text-white hover:opacity-80 rounded-lg p-2 focus:outline-none transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="p-6 space-y-6 max-h-96 overflow-y-auto">
+                        <!-- Primary Color -->
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="h-1 w-1 rounded-full" style="background-color: var(--primary-color, #4f46e5);"></div>
+                                <label class="block text-sm font-semibold text-gray-800">Primary Color</label>
+                            </div>
+                            <div class="flex flex-wrap gap-3" id="primaryColorSwatches">
+                                <div class="color-swatch" style="background-color: #4f46e5;" data-color="#4f46e5" data-hover="#4338ca" title="Indigo"></div>
+                                <div class="color-swatch" style="background-color: #0ea5e9;" data-color="#0ea5e9" data-hover="#0284c7" title="Sky"></div>
+                                <div class="color-swatch" style="background-color: #10b981;" data-color="#10b981" data-hover="#059669" title="Emerald"></div>
+                                <div class="color-swatch" style="background-color: #f59e0b;" data-color="#f59e0b" data-hover="#d97706" title="Amber"></div>
+                                <div class="color-swatch" style="background-color: #ef4444;" data-color="#ef4444" data-hover="#dc2626" title="Red"></div>
+                                <div class="color-swatch" style="background-color: #8b5cf6;" data-color="#8b5cf6" data-hover="#7c3aed" title="Violet"></div>
+                                <div class="color-swatch" style="background-color: #333333;" data-color="#333333" data-hover="#1a1a1a" title="Dark"></div>
+                                <div class="color-swatch" style="background-color: #4a4a4a;" data-color="#4a4a4a" data-hover="#2d2d2d" title="Gray"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Secondary Color -->
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="h-1 w-1 rounded-full" style="background-color: var(--secondary-color, #7c3aed);"></div>
+                                <label class="block text-sm font-semibold text-gray-800">Secondary Color</label>
+                            </div>
+                            <div class="flex flex-wrap gap-3" id="secondaryColorSwatches">
+                                <div class="color-swatch" style="background-color: #7c3aed;" data-color="#7c3aed" title="Purple"></div>
+                                <div class="color-swatch" style="background-color: #0369a1;" data-color="#0369a1" title="Cyan"></div>
+                                <div class="color-swatch" style="background-color: #047857;" data-color="#047857" title="Teal"></div>
+                                <div class="color-swatch" style="background-color: #b45309;" data-color="#b45309" title="Amber"></div>
+                                <div class="color-swatch" style="background-color: #b91c1c;" data-color="#b91c1c" title="Rose"></div>
+                                <div class="color-swatch" style="background-color: #6d28d9;" data-color="#6d28d9" title="Blue"></div>
+                                <div class="color-swatch" style="background-color: #1a1a1a;" data-color="#1a1a1a" title="Black"></div>
+                                <div class="color-swatch" style="background-color: #2d2d2d;" data-color="#2d2d2d" title="Dark Gray"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Success Color -->
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="h-1 w-1 rounded-full" style="background-color: var(--success-color, #10b981);"></div>
+                                <label class="block text-sm font-semibold text-gray-800">Success Color</label>
+                            </div>
+                            <div class="flex flex-wrap gap-3" id="successColorSwatches">
+                                <div class="color-swatch" style="background-color: #4f46e5;" data-color="#4f46e5" title="Indigo"></div>
+                                <div class="color-swatch" style="background-color: #0ea5e9;" data-color="#0ea5e9" title="Sky"></div>
+                                <div class="color-swatch" style="background-color: #10b981;" data-color="#10b981" title="Emerald"></div>
+                                <div class="color-swatch" style="background-color: #f59e0b;" data-color="#f59e0b" title="Amber"></div>
+                                <div class="color-swatch" style="background-color: #ef4444;" data-color="#ef4444" title="Red"></div>
+                                <div class="color-swatch" style="background-color: #8b5cf6;" data-color="#8b5cf6" title="Violet"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
+                        <button id="resetThemeModalBtn" class="text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                            Reset
+                        </button>
+                        <button id="saveThemeModalBtn" class="primary-button px-6 py-2 border border-transparent rounded-lg shadow-md text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all hover:shadow-lg">
+                            Save Theme
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 bg-white">
+                <button id="newTicketTab" class="tab-button mt-1 flex-auto py-1 px-4 text-xs font-medium active-tab focus:outline-none">
+                    New Ticket
+                </button>
+                <button id="myTicketsTab"
+                    class="tab-button mt-1 flex-auto py-1 px-4 text-xs font-medium text-gray-500 hover:text-gray-700 focus:outline-none relative">
+                    Tickets
+                    <span id="ticketNotificationBadge"
+                        class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                </button>
+                <button id="reportsTab"
+                    class="tab-button mt-1 flex-auto py-1 px-4 text-xs font-medium text-gray-500 hover:text-gray-700 focus:outline-none">
+                    Reports
+                </button>
+                <button id="onCallTab"
+                    class="tab-button mt-1 flex-auto py-1 px-4 text-xs font-medium text-gray-500 hover:text-gray-700 focus:outline-none whitespace-nowrap">
+                    On Call
+                </button>
+                <button id="settingsTab"
+                    class="tab-button mt-1 flex-auto py-1 px-4 text-xs font-medium text-gray-500 hover:text-gray-700 focus:outline-none admin-only it-admin-only hidden">
+                    Settings
+                </button>
+            </div>
+
+            <!-- User actions -->
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-2 flex justify-between items-center border-b border-indigo-100">
+                <div>
+                    <p class="text-xs font-medium text-gray-500">Welcome back,</p>
+                    <p class="text-xs font-bold text-gray-800" id="usernameDisplay"></p>
+                </div>
+                <button id="logoutBtn"
+                    class="text-xs bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 text-gray-700 px-3 py-1.5 rounded-md transition-all">
+                    Logout
+                </button>
+            </div>
+
+            <!-- New Ticket Form -->
+            <div id="newTicketContent" class="tab-content active p-4">
+                <form id="ticketForm" class="space-y-3">
+
+                    <div>
+                        <label for="name" class="block text-xs font-medium text-gray-700">Full Name</label>
+                        <input type="text" id="name" name="name" required readonly
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-100"
+                            placeholder="Auto-filled with your name">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="department" class="block text-xs font-medium text-gray-700">Department</label>
+                            <select id="department" name="department" required
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="" disabled selected>Select</option>
+                                <!-- Departments will be loaded dynamically -->
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="priority" class="block text-xs font-medium text-gray-700">Priority</label>
+                            <select id="priority" name="priority" required
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="" disabled selected>Select</option>
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="issueType" class="block text-xs font-medium text-gray-700">Issue Type</label>
+                        <select id="issueType" name="issueType" required
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="" disabled selected>Select issue type</option>
+                            <option value="Hardware">Hardware Problem</option>
+                            <option value="Software">Software Problem</option>
+                            <option value="Network">Network/Internet</option>
+                            <option value="Email">Email Problem</option>
+                            <option value="Account">Account Access</option>
+                            <option value="Request">New Equipment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="subject" class="block text-xs font-medium text-gray-700">Subject</label>
+                        <input type="text" id="subject" name="subject" required
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Brief description">
+                    </div>
+
+                    <div>
+                        <label for="description" class="block text-xs font-medium text-gray-700">Description</label>
+                        <textarea id="description" name="description" rows="3" required
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Describe your issue..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Have you tried restarting?</label>
+                        <div class="mt-1 space-x-4 flex items-center">
+                            <div class="flex items-center">
+                                <input type="radio" id="restart-yes" name="restarted" value="Yes"
+                                    class="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300">
+                                <label for="restart-yes" class="ml-1 block text-xs text-gray-700">Yes</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="radio" id="restart-no" name="restarted" value="No"
+                                    class="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300">
+                                <label for="restart-no" class="ml-1 block text-xs text-gray-700">No</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center">
+                        <input type="checkbox" id="urgent" name="urgent"
+                            class="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        <label for="urgent" class="ml-1 block text-xs text-gray-700">This issue is blocking my
+                            work</label>
+                    </div>
+
+                    <!-- Add this after the urgent checkbox in the ticket form -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Attach Image (Optional)</label>
+                        <div class="flex items-center space-x-2">
+                            <button type="button" id="selectImageBtn"
+                                class="bg-white py-1 px-3 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                Select Image
+                            </button>
+                            <span id="imageFileName" class="text-xs text-gray-500 truncate flex-1">No image
+                                selected</span>
+                            <button type="button" id="clearImageBtn" class="text-red-500 hover:text-red-700 hidden">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="imagePreview" class="mt-2 hidden">
+                            <img id="previewImage" class="max-w-full h-32 object-cover rounded border border-gray-300"
+                                src="" alt="Image preview">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button type="button" id="clearForm"
+                            class="bg-white py-1 px-3 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 mr-2">
+                            Clear
+                        </button>
+                        <button type="submit" id="submitTicketBtn"
+                            class="primary-button py-1 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <span id="submitBtnText">Submit Ticket</span>
+                            <span id="submitSpinner" class="loading hidden"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tickets List -->
+            <div id="myTicketsContent" class="tab-content p-3">
+
+                <!--Compact filter section -->
+                <div class="mb-1">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="text-sm font-medium text-gray-700">Tickets</h3> </br>
+                        <p class="text-xs text-gray-500" id="ticketsSubtitle">Your support requests</p>
+                    </div>
+                    <div class="compact-filters">
+                        <div class="custom-select wide-dropdown">
+                            <select id="departmentFilter"
+                                class="text-xs border border-gray-300 rounded-md shadow-sm py-1 px-2 w-full focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 filter-tooltip"
+                                title="">
+                                <option value="all">All Departments</option>
+                                <!-- Departments will be loaded dynamically -->
+                            </select>
+                        </div>
+                        <div class="custom-select">
+                            <select id="ticketFilter"
+                                class="text-xs border border-gray-300 rounded-md shadow-sm py-1 px-2 w-full focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">All Status</option>
+                                <option value="Open">Open</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Resolved">Resolved</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Container for ticket groups -->
+                <div id="ticketGroupsContainer" class="space-y-4">
+                    <!-- 
+                        Ticket groups like "Today", "Yesterday", "This Week", etc.
+                        will be dynamically generated by JavaScript here.
+                        Example structure for a group:
+                        <div class="ticket-group">
+                            <h4 class="text-xs font-medium text-gray-500 mb-2 sticky top-0 bg-gray-50 py-1 z-10">Today</h4>
+                            <div class="space-y-3">
+                                 ... ticket cards go here ... 
+                            </div>
+                        </div>
+                    -->
+                </div>
+
+                <div id="noTickets" class="text-center py-6 text-gray-500 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p class="mt-2">No tickets found</p>
+                </div>
+            </div>
+
+            <!-- Settings Tab (Admin only) -->
+            <div id="settingsContent" class="tab-content p-4">
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700">System Settings</h3>
+                    <p class="text-xs text-gray-500">Manage departments, ticket statuses, and appearance</p>
+                </div>
+
+                <!-- User Management (Admin only) -->
+                <div class="mb-6 bg-gray-50 p-3 rounded-md border border-gray-200">
+                    <h4 class="text-sm font-bold text-gray-900 mb-4 pb-2 border-b-2 flex items-center gap-2" style="border-color: var(--primary-color);">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--primary-color);">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        User Management
+                    </h4>
+
+                    <!-- Add New User Form -->
+                    <div class="mb-4 p-3 bg-white rounded border border-gray-200">
+                        <h5 class="text-xs font-medium text-gray-700 mb-3">Add New User</h5>
+
+                        <div class="space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Username</label>
+                                    <input type="text" id="newUsername" placeholder="Enter username"
+                                        class="text-xs w-full border border-gray-300 rounded shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Password</label>
+                                    <input type="password" id="newPassword" placeholder="Enter password"
+                                        class="text-xs w-full border border-gray-300 rounded shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Full Name</label>
+                                    <input type="text" id="newFullName" placeholder="Enter full name"
+                                        class="text-xs w-full border border-gray-300 rounded shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Department</label>
+                                    <select id="newUserDepartment"
+                                        class="text-xs w-full border border-gray-300 rounded shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="" disabled selected>Select Department</option>
+                                        <!-- Departments will be loaded dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Role</label>
+                                    <select id="newUserRole"
+                                        class="text-xs w-full border border-gray-300 rounded shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="Staff">Staff</option>
+                                        <option value="IT">IT Support</option>
+                                        <option value="Admin">Administrator</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-end">
+                                    <button id="addUserBtn"
+                                        class="primary-button w-full py-2 px-4 border border-transparent rounded shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 hover:bg-indigo-600 transition-colors">
+                                        Add User
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="userMessage" class="text-xs text-center mt-2 hidden"></div>
+                    </div>
+
+                    <!-- Users List - Simplified -->
+                    <div class="max-h-60 overflow-y-auto">
+                        <h6 class="text-xs font-medium text-gray-600 mb-2">Existing Users</h6>
+                        
+                        <!-- Search Bar for Staff -->
+                        <div class="mb-2">
+                            <input type="text" id="usersSearchInput" placeholder="Search ID or name..."
+                                class="text-xs w-full border border-gray-300 rounded shadow-sm py-1 px-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div id="usersList" class="space-y-2">
+                            <!-- Users will be listed here in a simpler format -->
+                        </div>
+
+                        <div id="noUsers" class="text-center py-4 text-gray-500 text-xs hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-400 mb-1"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                            </svg>
+                            <p>No users found</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Department Management -->
+                <div class="mb-6 bg-gray-50 p-3 rounded-md border border-gray-200">
+                    <h4 class="text-sm font-bold text-gray-900 mb-4 pb-2 border-b-2 flex items-center gap-2" style="border-color: var(--primary-color);">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--primary-color);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        Department Management
+                    </h4>
+
+                    <!-- Add Department Form -->
+                    <div class="mb-4 p-3 bg-white rounded border border-gray-200">
+                        <h5 class="text-xs font-medium text-gray-700 mb-2">Add New Department</h5>
+                        <div class="flex gap-2">
+                            <input type="text" id="newDepartment" placeholder="Enter department name"
+                                class="text-xs flex-grow border border-gray-300 rounded shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <button id="addDepartmentBtn"
+                                class="primary-button py-2 px-4 border border-transparent rounded shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 hover:bg-indigo-600 transition-colors">
+                                Add
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Add departments that users can be assigned to</p>
+                    </div>
+
+                    <!-- Departments List -->
+                    <div class="max-h-48 overflow-y-auto">
+                        <h6 class="text-xs font-medium text-gray-600 mb-2">Existing Departments</h6>
+                        <div id="departmentsList" class="space-y-2">
+                            <!-- Departments will be listed here dynamically -->
+                        </div>
+                        <div id="noDepartments" class="text-center py-4 text-gray-500 text-xs hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-400 mb-1"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            <p>No departments added yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Application Data Management -->
+                <div class="mb-6 bg-gray-50 p-3 rounded-md border border-gray-200">
+                    <h4 class="text-sm font-bold text-gray-900 mb-2 pb-2 border-b-2 flex items-center gap-2" style="border-color: var(--primary-color);">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--primary-color);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Application Data
+                    </h4>
+                    <p class="text-xs text-gray-500 mb-3">Clear application data to resolve any display issues</p>
+                    
+                    <button id="clearDataBtn" class="text-xs bg-red-600 hover:bg-red-700 text-white py-1.5 px-3 rounded-md shadow-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-colors flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                        Clear App Data
+                    </button>
+                </div>
+
+                <!-- Add this to the Settings tab after Theme Customization -->
+                <div class="mb-6 bg-gray-50 p-3 rounded-md border border-gray-200">
+                    <h4 class="text-sm font-bold text-gray-900 mb-4 pb-2 border-b-2 flex items-center gap-2" style="border-color: var(--primary-color);">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--primary-color);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                        </svg>
+                        WhatsApp API Settings
+                    </h4>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">API Key</label>
+                            <input type="text" id="whatsappApiKey" placeholder="Enter your WA Sender API key"
+                                class="text-xs w-full border border-gray-300 rounded shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <p class="text-xs text-gray-500 mt-1">Your WA Sender API authentication key</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Test Phone Number</label>
+                            <input type="text" id="whatsappPhoneNumber" placeholder="e.g., 60149431803"
+                                class="text-xs w-full border border-gray-300 rounded shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <p class="text-xs text-gray-500 mt-1">Phone number for testing (include country code without +)</p>
+                        </div>
+
+                        <div class="flex gap-2 pt-2">
+                            <button id="saveWhatsAppSettingsBtn"
+                                class="primary-button py-2 px-4 border border-transparent rounded shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 hover:bg-indigo-600 transition-colors">
+                                Save Settings
+                            </button>
+                            <button id="testWhatsAppBtn"
+                                class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 border border-transparent rounded shadow-sm text-xs font-medium focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors">
+                                Test Connection
+                            </button>
+                        </div>
+                        <div id="whatsappMessage" class="text-xs text-center mt-2 hidden"></div>
+                    </div>
+                </div>
+
+                <div class="mb-6 bg-gray-50 p-3 rounded-md border border-gray-200">
+                    <h4 class="text-sm font-bold text-gray-900 mb-4 pb-2 border-b-2 flex items-center gap-2" style="border-color: var(--primary-color);">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--primary-color);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 1118 14.158V11a6 6 0 00-9-5.197V5a7 7 0 0111.615 2.385z" />
+                        </svg>
+                        Notification Settings
+                    </h4>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-medium text-gray-700">New Ticket Notifications</p>
+                                <p class="text-xs text-gray-500">Show notifications when new tickets are submitted</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="notificationToggle" class="sr-only peer" checked>
+                                <div
+                                    class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-medium text-gray-700">Taskbar Flashing</p>
+                                <p class="text-xs text-gray-500">Flash taskbar when new tickets arrive (Windows)</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="taskbarFlashToggle" class="sr-only peer" checked>
+                                <div
+                                    class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="pt-2">
+                            <button id="testNotificationBtn"
+                                class="primary-button py-1.5 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                Test Notification
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reportsContent" class="tab-content p-4">
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700">Monthly Reports</h3>
+                    <p class="text-xs text-gray-500">Generate monthly task reports</p>
+                </div>
+
+                <!-- Report Filters -->
+                <div class="bg-gray-50 p-3 rounded-md border border-gray-200 mb-4">
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Month</label>
+                            <select id="reportMonth"
+                                class="text-xs w-full border border-gray-300 rounded shadow-sm py-1 px-2">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Year</label>
+                            <select id="reportYear"
+                                class="text-xs w-full border border-gray-300 rounded shadow-sm py-1 px-2">
+                                <!-- Years will be populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Department Filter (Visible for IT/Admin only) -->
+                    <div id="reportDepartmentFilter" class="mb-3 hidden">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Department</label>
+                        <select id="reportDepartment"
+                            class="text-xs w-full border border-gray-300 w-full rounded shadow-sm py-1 px-2">
+                            <option value="all">All Departments</option>
+                            <!-- Departments will be populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Report Type (Different options based on role) -->
+                    <div class="mb-3">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Report Type</label>
+                        <select id="reportType"
+                            class="text-xs w-full border border-gray-300 rounded shadow-sm py-1 px-2">
+                            <option value="user">My Tickets Report</option>
+                            <option value="department" class="it-admin-only hidden">Department Tickets Report</option>
+                            <option value="all" class="admin-only hidden">All Users Summary</option>
+                        </select>
+                    </div>
+
+                    <button id="generateReportBtn"
+                        class="primary-button w-full py-1.5 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        Generate Report
+                    </button>
+                </div>
+
+                <!-- Report Display Area -->
+                <div id="reportDisplay" class="hidden">
+
+                    <!-- Report Actions -->
+                    <div class="flex justify-end space-x-2 mb-4 no-print">
+                        <button id="exportPDFBtn"
+                            class="primary-button py-1.5 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            Export as PDF
+                        </button>
+                    </div>
+                    <!-- Report Header -->
+                    <div id="reportHeader" class="bg-white border border-gray-200 rounded-t-lg p-4 print:border-0">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h2 id="reportTitle" class="text-lg font-bold text-gray-900"></h2>
+                                <p id="reportPeriod" class="text-sm text-gray-600"></p>
+                                <p id="reportFilters" class="text-xs text-gray-500"></p>
+                                <p id="reportGenerated" class="text-xs text-gray-500"></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-medium">IT Help Desk System</p>
+                                <p class="text-xs text-gray-600">Monthly Task Report</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary Statistics -->
+                    <div id="reportSummary" class="bg-gray-50 border border-gray-200 border-t-0 p-4 print:border-0">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Summary Statistics</h3>
+                        <div id="summaryStats" class="grid grid-cols-5 gap-2 text-xs">
+                            <!-- Summary stats will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Report Content -->
+                    <div id="reportContent"
+                        class="bg-white border border-gray-200 border-t-0 rounded-b-lg p-4 print:border-0">
+                    </div>
+
+
+
+                    <!-- No Data Message -->
+                    <div id="noReportData" class="text-center py-8 text-gray-500 text-sm hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p class="mt-2">No report data available for the selected period</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- On Call Tab -->
+            <div id="onCallContent" class="tab-content p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700">On Call Schedule</h3>
+                        <p class="text-xs text-gray-500">Weekly rotation for urgent support.</p>
+                    </div>
+                    <button id="editOnCallBtn" class="it-admin-only hidden text-xs bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-2 py-1 rounded-md shadow-sm">
+                        Edit Schedule
+                    </button>
+                </div>
+                <!-- Currently On Call -->
+                <div class="mb-4">
+                    <h4 class="text-xs font-medium text-gray-500 mb-2">Currently On Call</h4>
+                    <div id="onCallNow">
+                        <!-- Currently on-call person will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Weekly Rotation -->
+                <div>
+                    <h4 class="text-xs font-medium text-gray-500 mb-2">Weekly Rotation Schedule</h4>
+                    <div id="onCallSchedule" class="space-y-3">
+                        <!-- Staff cards will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- On-Call Edit Modal -->
+        <div id="onCallEditModal" class="modal">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 fade-in">
+                <div class="ticket-header rounded-t-lg py-3 px-4 text-white">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-medium">Edit On-Call Schedule</h3>
+                        <button id="closeOnCallEditModal" class="text-white hover:text-gray-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-md p-2 mb-3">
+                        <p class="text-xs text-blue-700">💡 <strong>Drag to reorder:</strong> The person at the top will be on-call. Arrange them in rotation order.</p>
+                    </div>
+                    <div id="onCallEditList" class="space-y-2 border border-gray-200 p-2 rounded-md bg-gray-50">
+                        <!-- Draggable staff list will be populated here -->
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 rounded-b-lg flex justify-end space-x-2">
+                    <button id="cancelOnCallEdit"
+                        class="bg-white py-1.5 px-4 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        Cancel
+                    </button>
+                    <button id="saveOnCallOrder"
+                        class="primary-button py-1.5 px-4 border border-transparent rounded-md shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reopen Button (visible when sidebar is closed) -->
+        <button id="reopenBtn"
+            class="reopen-button hover:bg-indigo-700 text-white rounded-full p-3 shadow-lg focus:outline-none">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6" />
+            </svg>
+        </button>
+
+        <!-- Ticket Detail Modal -->
+        <div id="ticketModal" class="modal">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 fade-in flex flex-col max-h-[90vh]">
+                <div class="ticket-header rounded-t-lg py-3 px-4 text-white flex-shrink-0">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-medium">Ticket Details</h3>
+                        <button id="closeModal" class="text-white hover:text-gray-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-y-auto p-4">
+                    <!-- Timeline section in ticket modal -->
+                    <div class="mb-4">
+                        <p class="text-xs text-gray-500 mb-1">Ticket Timeline</p>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-medium">Submitted:</span>
+                                    <span id="modalSubmitDate" class="text-xs text-gray-600"></span>
+                                </div>
+                                <div id="resolutionInfo" class="hidden">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs font-medium">Resolved:</span>
+                                        <span id="modalResolvedDate" class="text-xs text-gray-600"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs font-medium">Resolved By:</span>
+                                        <span id="modalResolvedBy" class="text-xs text-gray-600"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs font-medium">Closed By:</span>
+                                        <span id="modalClosedBy" class="text-xs text-gray-600"></span>
+                                    </div>
+                                </div>
+                                <!-- Add Duration Display -->
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-medium">Duration:</span>
+                                    <span id="modalDuration" class="text-xs font-medium"></span>
+                                </div>
+                                <div id="openStatus" class="flex justify-between items-center">
+                                    <span class="text-xs font-medium">Current Status:</span>
+                                    <span id="modalCurrentStatus" class="text-xs font-medium"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- After the description in the ticket modal -->
+                    <div id="imageSection" class="mb-4 hidden">
+                        <p class="text-xs text-gray-500 mb-1">Attached Image</p>
+                        <div id="modalImageContainer" class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <img id="modalImage" class="max-w-full max-h-48 object-contain mx-auto image-clickable" src=""
+                                alt="Ticket image">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 id="modalTicketId" class="text-xs text-gray-500"></h4>
+                                <h3 id="modalSubject" class="text-base font-medium text-gray-900"></h3>
+                            </div>
+                            <div id="modalStatusContainer" class="it-admin-only hidden flex-shrink-0">
+                                <select id="modalStatus" title="Change ticket status"
+                                    class="text-xs border border-gray-300 rounded-md shadow-sm py-1 px-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    <!-- Status options will be added dynamically -->
+                                </select>
+                            </div>
+                            <span id="modalStatusBadge" class="px-2 py-0.5 text-xs font-medium rounded-full"></span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="bg-gray-50 p-2 rounded-lg">
+                            <p class="text-xs text-gray-500">Submitted by</p>
+                            <p id="modalName" class="text-sm font-medium text-gray-800"></p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded-lg">
+                            <p class="text-xs text-gray-500">Department</p>
+                            <p id="modalDepartment" class="text-sm font-medium text-gray-800"></p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded-lg">
+                            <p class="text-xs text-gray-500">Priority</p>
+                            <p id="modalPriority" class="text-sm font-bold"></p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded-lg">
+                            <p class="text-xs text-gray-500">Date</p>
+                            <p id="modalDate" class="text-sm"></p>
+                        </div>
+                    </div>
+
+                    <!-- System Information Section (IT/Admin only) -->
+                    <div id="systemInfoSection" class="it-admin-only hidden mb-4">
+                        <div class="grid grid-cols-2 gap-3 bg-blue-50 border border-blue-200 p-2 rounded-lg">
+                            <div class="text-blue-900">
+                                <p class="text-xs text-gray-500">PC Name</p>
+                                <p id="modalPCName" class="text-sm font-mono font-medium">Not available</p>
+                            </div>
+                            <div class="text-blue-900">
+                                <p class="text-xs text-gray-500">IP Address</p>
+                                <p id="modalIPAddress" class="text-sm font-mono font-medium">Not available</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <p class="text-xs text-gray-500">Description</p>
+                        <p id="modalDescription" class="text-sm mt-1 bg-gray-50 p-2 rounded"></p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 rounded-b-lg flex justify-between it-admin-only hidden flex-shrink-0 border-t border-gray-200">
+                        <button id="deleteTicketBtn"
+                            class="bg-red-500 hover:bg-red-600 py-1 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-red-500">
+                            Delete Ticket
+                        </button>
+                        <button id="updateTicketBtn"
+                            class="primary-button py-1 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            Update Ticket
+                        </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteConfirmModal" class="modal">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 fade-in p-4">
+                <div class="text-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <h3 class="mt-2 text-lg font-medium text-gray-900">Delete Ticket</h3>
+                    <p class="mt-1 text-sm text-gray-500">Are you sure you want to delete this ticket? This action
+                        cannot be
+                        undone.</p>
+                </div>
+
+                <div class="flex justify-center space-x-3">
+                    <button id="cancelDeleteBtn"
+                        class="bg-white py-1.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        Cancel
+                    </button>
+                    <button id="confirmDeleteBtn"
+                        class="bg-red-500 hover:bg-red-600 py-1.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-1 focus:ring-red-500">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Viewer Modal -->
+        <div id="imageViewerModal" class="modal">
+            <div class="bg-black bg-opacity-90 rounded-lg shadow-xl w-full max-w-4xl mx-4 fade-in">
+                <div class="flex justify-between items-center p-4 border-b border-gray-700">
+                    <h3 class="text-white text-lg font-medium" id="imageViewerTitle">Image Preview</h3>
+                    <button id="closeImageViewer" class="text-white hover:text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-4 flex justify-center items-center max-h-96 overflow-auto">
+                    <img id="fullSizeImage" class="max-w-full max-h-full object-contain" src="" alt="Full size image">
+                </div>
+
+                <div class="p-4 border-t border-gray-700 flex justify-between items-center">
+                    <span id="imageInfo" class="text-white text-sm"></span>
+                    <button id="downloadImageBtn" class="primary-button py-2 px-4 rounded text-sm">
+                        Download Image
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- External JavaScript Files -->
+        <script src="app.js"></script>
+        <script src="ui-handlers.js"></script>
+</body>
+
+</html>
