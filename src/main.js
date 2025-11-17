@@ -469,25 +469,27 @@ function createTray() {
                     return;
                 }
                 
-                // Show checking message
-                const notification = new Notification({
-                    title: 'IT Help Desk',
-                    body: 'Checking for updates...',
-                    icon: path.join(__dirname, 'assets', 'chat.png'),
-                    silent: true
+                // Show initial dialog
+                const checkingDialog = dialog.showMessageBox({
+                    type: 'info',
+                    title: 'Checking for Updates',
+                    message: 'Checking for updates, please wait...',
+                    buttons: [],
+                    defaultId: -1
                 });
-                notification.show();
                 
                 try {
                     const result = await autoUpdater.checkForUpdates();
-                    notification.close();
+                    
+                    // Close the checking dialog
+                    checkingDialog.then(() => {});
                     
                     if (result && result.updateInfo) {
                         const currentVersion = app.getVersion();
                         const latestVersion = result.updateInfo.version;
                         
                         if (currentVersion === latestVersion) {
-                            dialog.showMessageBox({
+                            await dialog.showMessageBox({
                                 type: 'info',
                                 title: 'No Updates Available',
                                 message: `You are running the latest version (v${currentVersion}).`,
@@ -496,7 +498,7 @@ function createTray() {
                         }
                         // If there's an update, the update-available event will handle it
                     } else {
-                        dialog.showMessageBox({
+                        await dialog.showMessageBox({
                             type: 'info',
                             title: 'No Updates Available',
                             message: 'You are running the latest version.',
@@ -504,9 +506,8 @@ function createTray() {
                         });
                     }
                 } catch (err) {
-                    notification.close();
                     console.error('Error checking for app updates:', err);
-                    dialog.showMessageBox({
+                    await dialog.showMessageBox({
                         type: 'error',
                         title: 'Update Check Failed',
                         message: `Failed to check for updates: ${err.message}`,
