@@ -3219,6 +3219,17 @@ async function initializeApp() {
     applyTheme();
     loadNotificationSettings();
  
+    // Load and display app version
+    try {
+        const version = await window.electronAPI.getAppVersion();
+        const versionElement = document.getElementById('appVersion');
+        if (versionElement) {
+            versionElement.textContent = `v${version}`;
+        }
+    } catch (error) {
+        console.error('Error loading app version:', error);
+    }
+
     // Load on-call schedule from database
     try {
         const result = await window.electronAPI.getOnCallSchedule();

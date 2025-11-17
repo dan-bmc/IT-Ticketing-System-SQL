@@ -1,7 +1,7 @@
 {
   "name": "it-ticketing",
-  "version": "1.0.3",
-  "description": "IT Helpdesk with sql connection (Electron)",
+  "version": "1.0.4",
+  "description": "IT Helpdesk System",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",

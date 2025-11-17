@@ -103,5 +103,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clearAppData: async () => {
         const response = await ipcRenderer.invoke('clear-app-data');
         return response.success;
-    }
+    },
+
+    // Get app version
+    getAppVersion: () => ipcRenderer.invoke('get-app-version')
 });

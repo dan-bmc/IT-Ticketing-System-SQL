@@ -1417,6 +1417,10 @@ ipcMain.handle('get-ticket-image', async (event, ticketId) => {
 // IPC HANDLERS - SYSTEM INFORMATION
 // ============================================================================
 
+ipcMain.handle('get-app-version', async () => {
+    return app.getVersion();
+});
+
 ipcMain.handle('get-system-info', async () => {
     try {
         const nets = networkInterfaces();
