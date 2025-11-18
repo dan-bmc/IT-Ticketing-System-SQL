@@ -3289,16 +3289,19 @@ function setupAutoUpdateListeners() {
     // Listen for update available
     window.electronAPI.onUpdateAvailable((event, version) => {
         showUpdateNotification('update-available', version);
+        showUpdateStatusBelowVersion('available', version);
     });
 
     // Listen for download progress
     window.electronAPI.onDownloadProgress((event, progressObj) => {
         updateDownloadProgress(progressObj);
+        showUpdateStatusBelowVersion('downloading', null, progressObj.percent);
     });
 
     // Listen for update downloaded
     window.electronAPI.onUpdateDownloaded((event, version) => {
         showUpdateNotification('update-downloaded', version);
+        showUpdateStatusBelowVersion('ready', version);
     });
 }
 
@@ -3407,6 +3410,34 @@ function closeUpdateNotification() {
     if (notification) {
         notification.style.animation = 'slideOut 0.3s ease-in';
         setTimeout(() => notification.remove(), 300);
+    }
+}
+
+function showUpdateStatusBelowVersion(status, version, percent) {
+    const updateStatus = document.getElementById('updateStatus');
+    if (!updateStatus) return;
+
+    updateStatus.style.display = 'block';
+    
+    if (status === 'available') {
+        updateStatus.innerHTML = `🎉 New update available: v${version}`;
+        updateStatus.style.color = '#4f46e5'; // primary color
+        updateStatus.style.cursor = 'pointer';
+        updateStatus.onclick = () => downloadUpdate();
+        updateStatus.title = 'Click to download';
+    } else if (status === 'downloading') {
+        const downloadPercent = Math.round(percent);
+        updateStatus.innerHTML = `⬇️ Downloading update... ${downloadPercent}%`;
+        updateStatus.style.color = '#7c3aed'; // secondary color
+        updateStatus.style.cursor = 'default';
+        updateStatus.onclick = null;
+        updateStatus.title = '';
+    } else if (status === 'ready') {
+        updateStatus.innerHTML = `✅ Update ready: v${version} - Click to restart`;
+        updateStatus.style.color = '#10b981'; // success color
+        updateStatus.style.cursor = 'pointer';
+        updateStatus.onclick = () => installUpdate();
+        updateStatus.title = 'Click to install and restart';
     }
 }
 
