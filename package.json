@@ -1,13 +1,13 @@
 {
   "name": "it-ticketing",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "IT Helpdesk System",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
+    "build": "electron-builder --dir=false",
     "dev": "electron . --dev",
-    "dist": "electron-builder --publish=never",
+    "dist": "electron-builder --publish=never --dir=false",
     "publish": "electron-builder --publish=always"
   },
   "repository": {
