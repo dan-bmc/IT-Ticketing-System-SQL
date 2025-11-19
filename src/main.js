@@ -789,6 +789,113 @@ async function getCurrentOnCallPerson() {
 }
 
 /**
+ * Send ticket details to WhatsApp group
+ */
+async function sendTicketToWhatsAppGroup(ticketData, groupName = 'IT Help Desk') {
+    try {
+        // Format the submission date
+        const submitDate = new Date();
+        const formattedDate = submitDate.toLocaleString('en-MY', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+        
+        // Format the message
+        const message = `🎫 *New IT Support Ticket*
+
+*Ticket ID:* ${ticketData.id}
+*From:* ${ticketData.name}
+*Department:* ${ticketData.department}
+*Priority:* ${ticketData.priority}
+*Issue Type:* ${ticketData.issueType}
+*Date:* ${formattedDate}
+
+*Subject:* ${ticketData.subject}
+*Description:* ${ticketData.description}
+
+*PC Name:* ${ticketData.pcName}
+*IP Address:* ${ticketData.ipAddress}
+*Submitted by:* ${ticketData.submittedBy}`;
+        
+        // Get WhatsApp settings from database
+        const whatsappSettings = await getWhatsAppSettings();
+        const apiKey = whatsappSettings?.apiKey || '85e5d75676db4abb4fee2d08afed4b270e1c710cc920f015f535323e01b98066';
+        
+        const https = require('https');
+        
+        // Use known Group JID for "IT Help Desk" - more reliable than lookup
+        console.log(`Sending to WhatsApp group: ${groupName}`);
+        const knownGroupJid = '120363422327102368@g.us'; // IT Help Desk group
+        
+        // Send message to group using the JID
+        const sendMessageUrl = 'https://wasenderapi.com/api/send-message';
+        
+        const postData = JSON.stringify({
+            to: knownGroupJid,
+            text: message
+        });
+        
+        const sendOptions = {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+        
+        return new Promise((resolve, reject) => {
+            const req = https.request(sendMessageUrl, sendOptions, (res) => {
+                let responseData = '';
+                
+                res.on('data', (chunk) => {
+                    responseData += chunk;
+                });
+                
+                res.on('end', () => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        try {
+                            const parsedResponse = JSON.parse(responseData);
+                            if (parsedResponse.success === false) {
+                                console.error(`WhatsApp Group Error: ${parsedResponse.message}`);
+                                reject(new Error(parsedResponse.message));
+                            } else {
+                                console.log(`Ticket sent to WhatsApp group: ${groupName}`);
+                                console.log('WA Sender API Response:', responseData);
+                                resolve(responseData);
+                            }
+                        } catch (e) {
+                            console.log(`Ticket sent to WhatsApp group: ${groupName}`);
+                            console.log('WA Sender API Response:', responseData);
+                            resolve(responseData);
+                        }
+                    } else {
+                        console.error('WA Sender API Error:', res.statusCode, responseData);
+                        reject(new Error(`API returned status ${res.statusCode}`));
+                    }
+                });
+            });
+            
+            req.on('error', (error) => {
+                console.error('Error sending to WA Sender API:', error);
+                reject(error);
+            });
+            
+            req.write(postData);
+            req.end();
+        });
+        
+    } catch (error) {
+        console.error('Error sending ticket to WhatsApp group:', error);
+        throw error;
+    }
+}
+
+/**
  * Send ticket details to on-call person via WhatsApp
  */
 async function sendTicketToOnCallWhatsApp(ticketData) {
@@ -1187,12 +1294,20 @@ ipcMain.handle('submit-ticket', async (event, ticketData) => {
         const result = await sql.query(query);
         console.log('Ticket submitted with local time:', localDateString);
         
-        // If it's an on-call submission, send to WhatsApp
+        // Always send to WhatsApp group "IT Help Desk"
+        try {
+            await sendTicketToWhatsAppGroup(ticketData, 'IT Help Desk');
+        } catch (whatsappError) {
+            console.error('Error sending WhatsApp group message:', whatsappError);
+            // Don't fail the ticket submission if WhatsApp fails
+        }
+        
+        // If it's an on-call submission, also send to on-call person
         if (ticketData.isOnCall) {
             try {
                 await sendTicketToOnCallWhatsApp(ticketData);
             } catch (whatsappError) {
-                console.error('Error sending WhatsApp message:', whatsappError);
+                console.error('Error sending WhatsApp message to on-call person:', whatsappError);
                 // Don't fail the ticket submission if WhatsApp fails
             }
         }

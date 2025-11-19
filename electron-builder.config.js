@@ -23,6 +23,18 @@ module.exports = {
     allowToChangeInstallationDirectory: true,
     deleteAppDataOnUninstall: false
   },
+  compression: "normal",
+  buildVersion: "1.0.0",
+  // Skip unpacked directory to save space
+  artifactBuildCompleted: null,
+  removePackageScripts: true,
+  npmRebuild: false,
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    deleteAppDataOnUninstall: false
+  },
   removePackageScripts: true,
   npmRebuild: false,
   files: [

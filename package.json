@@ -69,6 +69,8 @@
       "installerHeaderIcon": "src/assets/chat.ico",
       "deleteAppDataOnUninstall": true
     },
+    "removePackageScripts": true,
+    "npmRebuild": false,
     "mac": {
       "icon": "src/assets/chat.icns"
     },
