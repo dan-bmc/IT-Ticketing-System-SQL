@@ -18,6 +18,8 @@ app.setAppUserModelId('IT Help Desk');
 // Configure auto-updater
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.allowDowngrade = false;
+autoUpdater.allowPrerelease = false;
 autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'dan-bmc',

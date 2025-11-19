@@ -3383,6 +3383,10 @@ function updateDownloadProgress(progressObj) {
     const notification = document.getElementById('update-notification');
     if (notification) {
         const percent = Math.round(progressObj.percent);
+        const transferredMB = (progressObj.transferred / 1024 / 1024).toFixed(2);
+        const totalMB = (progressObj.total / 1024 / 1024).toFixed(2);
+        const speedMBps = (progressObj.bytesPerSecond / 1024 / 1024).toFixed(2);
+        
         notification.innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2">
@@ -3397,7 +3401,8 @@ function updateDownloadProgress(progressObj) {
                     <div style="background: var(--primary-color); height: 100%; width: ${percent}%; transition: width 0.3s;"></div>
                 </div>
             </div>
-            <p style="margin: 0; color: #666; font-size: 14px;">${percent}% complete</p>
+            <p style="margin: 0 0 4px 0; color: #666; font-size: 14px;">${percent}% complete (${transferredMB} MB / ${totalMB} MB)</p>
+            <p style="margin: 0; color: #999; font-size: 12px;">Speed: ${speedMBps} MB/s</p>
         `;
     }
 }
@@ -3459,10 +3464,12 @@ function showUpdateStatusBelowVersion(status, version, percent) {
         updateStatus.classList.add('pulse-animation');
     } else if (status === 'downloading') {
         const downloadPercent = Math.round(percent);
-        updateStatus.innerHTML = `⬇️ Downloading update... ${downloadPercent}%`;
+        updateStatus.innerHTML = `⬇️ Downloading... ${downloadPercent}%`;
         updateStatus.style.color = '#7c3aed'; // secondary color
         updateStatus.style.cursor = 'default';
         updateStatus.onclick = null;
+        updateStatus.title = '';
+        updateStatus.classList.remove('pulse-animation');
         updateStatus.title = '';
         updateStatus.classList.remove('pulse-animation');
     } else if (status === 'ready') {

@@ -1,14 +1,14 @@
 {
   "name": "it-ticketing",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "IT Helpdesk System",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --dir=false",
+    "build": "electron-builder --win nsis --x64 && powershell -Command \"Remove-Item -Recurse -Force .\\Installer\\win-unpacked -ErrorAction SilentlyContinue\"",
     "dev": "electron . --dev",
-    "dist": "electron-builder --publish=never --dir=false",
-    "publish": "electron-builder --publish=always"
+    "dist": "electron-builder --publish=never --win nsis --x64 && powershell -Command \"Remove-Item -Recurse -Force .\\Installer\\win-unpacked -ErrorAction SilentlyContinue\"",
+    "publish": "electron-builder --publish=always --win nsis --x64 && powershell -Command \"Remove-Item -Recurse -Force .\\Installer\\win-unpacked -ErrorAction SilentlyContinue\""
   },
   "repository": {
     "type": "git",
@@ -68,8 +68,10 @@
       "installerIcon": "src/assets/chat.ico",
       "uninstallerIcon": "src/assets/chat.ico",
       "installerHeaderIcon": "src/assets/chat.ico",
-      "deleteAppDataOnUninstall": true
+      "deleteAppDataOnUninstall": true,
+      "differentialPackage": true
     },
+    "compression": "maximum",
     "removePackageScripts": true,
     "npmRebuild": false,
     "mac": {
