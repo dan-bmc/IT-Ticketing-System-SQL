@@ -47,7 +47,8 @@
       {
         "provider": "github",
         "owner": "dan-bmc",
-        "repo": "IT-Ticketing-System-SQL"
+        "repo": "IT-Ticketing-System-SQL",
+        "releaseType": "release"
       }
     ],
     "win": {

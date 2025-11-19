@@ -26,25 +26,41 @@ autoUpdater.setFeedURL({
 
 // Auto-updater event handlers
 autoUpdater.on('checking-for-update', () => {
+    console.log('====================================');
     console.log('Checking for updates...');
+    console.log('Current version:', app.getVersion());
+    console.log('Feed URL:', autoUpdater.getFeedURL());
+    console.log('====================================');
 });
 
 autoUpdater.on('update-available', (info) => {
-    console.log('Update available:', info.version);
+    console.log('====================================');
+    console.log('✅ UPDATE AVAILABLE!');
+    console.log('Current version:', app.getVersion());
+    console.log('New version:', info.version);
+    console.log('Release date:', info.releaseDate);
+    console.log('====================================');
     if (mainWindow) {
         mainWindow.webContents.send('update-available', info.version);
     }
 });
 
 autoUpdater.on('update-not-available', (info) => {
-    console.log('Update not available. Current version:', info.version);
+    console.log('====================================');
+    console.log('ℹ️  Update not available');
+    console.log('Current version:', app.getVersion());
+    console.log('Latest version:', info.version);
+    console.log('====================================');
     if (mainWindow) {
         mainWindow.webContents.send('update-not-available', info.version);
     }
 });
 
 autoUpdater.on('error', (err) => {
-    console.log('Error in auto-updater:', err);
+    console.log('====================================');
+    console.log('❌ Error in auto-updater:', err.message);
+    console.log('Full error:', err);
+    console.log('====================================');
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
