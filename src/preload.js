@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Event listeners for auto-updates
     onTicketsUpdated: (callback) => ipcRenderer.on('tickets-updated', callback),
     onUpdateAvailable: (callback) => ipcRenderer.on('update-available', callback),
+    onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', callback),
     onDownloadProgress: (callback) => ipcRenderer.on('download-progress', callback),
     onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
     removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),

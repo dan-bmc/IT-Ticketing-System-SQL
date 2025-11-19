@@ -3230,6 +3230,9 @@ async function initializeApp() {
         console.error('Error loading app version:', error);
     }
 
+    // Check for updates on app load
+    checkForUpdatesOnLoad();
+
     // Load on-call schedule from database
     try {
         const result = await window.electronAPI.getOnCallSchedule();
@@ -3290,6 +3293,11 @@ function setupAutoUpdateListeners() {
     window.electronAPI.onUpdateAvailable((event, version) => {
         showUpdateNotification('update-available', version);
         showUpdateStatusBelowVersion('available', version);
+    });
+
+    // Listen for update not available
+    window.electronAPI.onUpdateNotAvailable((event) => {
+        showUpdateStatusBelowVersion('up-to-date');
     });
 
     // Listen for download progress
@@ -3415,16 +3423,40 @@ function closeUpdateNotification() {
 
 function showUpdateStatusBelowVersion(status, version, percent) {
     const updateStatus = document.getElementById('updateStatus');
+    const checkingUpdate = document.getElementById('checkingUpdate');
+    
     if (!updateStatus) return;
+
+    // Hide checking message
+    if (checkingUpdate) {
+        checkingUpdate.style.display = 'none';
+    }
 
     updateStatus.style.display = 'block';
     
-    if (status === 'available') {
-        updateStatus.innerHTML = `🎉 New update available: v${version}`;
+    if (status === 'checking') {
+        updateStatus.innerHTML = `🔍 Checking for updates...`;
+        updateStatus.style.color = '#9ca3af'; // gray color
+        updateStatus.style.cursor = 'default';
+        updateStatus.onclick = null;
+        updateStatus.title = '';
+    } else if (status === 'up-to-date') {
+        updateStatus.innerHTML = `✅ You're up to date`;
+        updateStatus.style.color = '#10b981'; // success color
+        updateStatus.style.cursor = 'default';
+        updateStatus.onclick = null;
+        updateStatus.title = '';
+        // Hide after 5 seconds
+        setTimeout(() => {
+            updateStatus.style.display = 'none';
+        }, 5000);
+    } else if (status === 'available') {
+        updateStatus.innerHTML = `🎉 <span style="font-weight: 600;">New update available: v${version}</span>`;
         updateStatus.style.color = '#4f46e5'; // primary color
         updateStatus.style.cursor = 'pointer';
         updateStatus.onclick = () => downloadUpdate();
         updateStatus.title = 'Click to download';
+        updateStatus.classList.add('pulse-animation');
     } else if (status === 'downloading') {
         const downloadPercent = Math.round(percent);
         updateStatus.innerHTML = `⬇️ Downloading update... ${downloadPercent}%`;
@@ -3432,13 +3464,46 @@ function showUpdateStatusBelowVersion(status, version, percent) {
         updateStatus.style.cursor = 'default';
         updateStatus.onclick = null;
         updateStatus.title = '';
+        updateStatus.classList.remove('pulse-animation');
     } else if (status === 'ready') {
-        updateStatus.innerHTML = `✅ Update ready: v${version} - Click to restart`;
+        updateStatus.innerHTML = `✅ <span style="font-weight: 600;">Update ready: v${version}</span> - Click to restart`;
         updateStatus.style.color = '#10b981'; // success color
         updateStatus.style.cursor = 'pointer';
         updateStatus.onclick = () => installUpdate();
         updateStatus.title = 'Click to install and restart';
+        updateStatus.classList.add('pulse-animation');
+    } else if (status === 'error') {
+        updateStatus.innerHTML = `⚠️ Update check failed`;
+        updateStatus.style.color = '#ef4444'; // red color
+        updateStatus.style.cursor = 'default';
+        updateStatus.onclick = null;
+        updateStatus.title = '';
+        // Hide after 5 seconds
+        setTimeout(() => {
+            updateStatus.style.display = 'none';
+        }, 5000);
     }
+}
+
+function checkForUpdatesOnLoad() {
+    // Show checking status
+    showUpdateStatusBelowVersion('checking');
+    
+    // Check for updates
+    window.electronAPI.checkForUpdates()
+        .then(result => {
+            if (result.success) {
+                // Update status will be shown via event listeners
+                console.log('Update check completed:', result.message);
+            } else {
+                console.error('Update check failed:', result.error);
+                showUpdateStatusBelowVersion('error');
+            }
+        })
+        .catch(error => {
+            console.error('Error checking for updates:', error);
+            showUpdateStatusBelowVersion('error');
+        });
 }
 
 // Initialize when DOM is fully loaded

@@ -517,6 +517,20 @@
             }
         }
 
+        /* Pulse animation for update status */
+        .pulse-animation {
+            animation: pulse-update 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-update {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
         /* Ensure badge is properly positioned */
         .relative {
             position: relative;
@@ -884,6 +898,7 @@
             <div class="text-center mt-4 text-xs text-gray-400">
                 <p id="appVersion">v1.0.9</p>
                 <p id="updateStatus" class="mt-2 text-xs font-medium" style="display: none;"></p>
+                <p id="checkingUpdate" class="mt-1 text-xs text-gray-400" style="display: none;">Checking for updates...</p>
             </div>
 
         </div>
