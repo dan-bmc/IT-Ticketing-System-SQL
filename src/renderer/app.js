@@ -3323,8 +3323,9 @@ function showUpdateNotification(type, version) {
     notification.id = 'update-notification';
     notification.style.cssText = `
         position: fixed;
-        top: 20px;
-        right: 20px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         background: white;
         border: 2px solid var(--primary-color);
         border-radius: 8px;
