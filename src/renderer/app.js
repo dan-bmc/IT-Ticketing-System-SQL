@@ -1161,8 +1161,10 @@ function openOnCallEditModal() {
                 const newPictureSrc = result.data;
                 e.target.src = newPictureSrc;
                 // Find the hidden input sibling and update its value
-                const hiddenInput = e.target.nextElementSibling;
-                if (hiddenInput && hiddenInput.classList.contains('edit-on-call-picture-data')) {
+                // Navigate to parent container (flex-shrink-0 div) and find the hidden input
+                const parentContainer = e.target.closest('.flex-shrink-0');
+                const hiddenInput = parentContainer?.querySelector('.edit-on-call-picture-data');
+                if (hiddenInput) {
                     hiddenInput.value = newPictureSrc;
                 }
             }
@@ -3323,9 +3325,8 @@ function showUpdateNotification(type, version) {
     notification.id = 'update-notification';
     notification.style.cssText = `
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        top: 20px;
+        right: 20px;
         background: white;
         border: 2px solid var(--primary-color);
         border-radius: 8px;

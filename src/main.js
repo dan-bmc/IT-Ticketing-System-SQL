@@ -777,15 +777,20 @@ function getFallbackIP() {
  */
 async function getCurrentOnCallPerson() {
     try {
+        console.log('🔍 Getting current on-call person...');
         const scheduleResult = await sql.query('SELECT * FROM OnCallSchedule ORDER BY RotationOrder ASC');
         const settingsResult = await sql.query("SELECT SettingValue FROM ApplicationSettings WHERE SettingKey = 'rotationStartWeek'");
         
         const schedule = scheduleResult.recordset;
+        console.log('📋 On-call schedule entries:', schedule.length);
+        
         if (schedule.length === 0) {
+            console.error('❌ No on-call schedule found in database!');
             return null;
         }
         
         const startWeek = settingsResult.recordset.length > 0 ? parseInt(settingsResult.recordset[0].SettingValue, 10) : 1;
+        console.log('📅 Start week:', startWeek);
         
         // Calculate current week of year
         const now = new Date();
@@ -796,12 +801,22 @@ async function getCurrentOnCallPerson() {
         
         // Calculate which person is on call
         const weeksElapsed = weekOfYear - startWeek;
-        const currentIndex = weeksElapsed % schedule.length;
-        const onCallPerson = schedule[currentIndex >= 0 ? currentIndex : schedule.length + currentIndex];
+        // Handle negative weeks with proper modulo calculation
+        const currentIndex = ((weeksElapsed % schedule.length) + schedule.length) % schedule.length;
+        const onCallPerson = schedule[currentIndex];
+        
+        console.log('✅ Current on-call person:', {
+            name: onCallPerson?.StaffName,
+            whatsapp: onCallPerson?.Whatsapp,
+            position: onCallPerson?.Position,
+            weekOfYear: weekOfYear,
+            weeksElapsed: weeksElapsed,
+            currentIndex: currentIndex
+        });
         
         return onCallPerson;
     } catch (error) {
-        console.error('Error getting on-call person:', error);
+        console.error('❌ Error getting on-call person:', error);
         return null;
     }
 }
@@ -918,12 +933,20 @@ async function sendTicketToWhatsAppGroup(ticketData, groupName = 'IT Help Desk')
  */
 async function sendTicketToOnCallWhatsApp(ticketData) {
     try {
+        console.log('📞 === SENDING TO ON-CALL PERSON ===');
         const onCallPerson = await getCurrentOnCallPerson();
         
-        if (!onCallPerson || !onCallPerson.Whatsapp) {
-            console.log('No on-call person found or WhatsApp number not available');
+        if (!onCallPerson) {
+            console.error('❌ No on-call person returned from database!');
             return;
         }
+        
+        if (!onCallPerson.Whatsapp) {
+            console.error('❌ On-call person has no WhatsApp number:', onCallPerson.StaffName);
+            return;
+        }
+        
+        console.log('✅ On-call person found:', onCallPerson.StaffName, 'WhatsApp:', onCallPerson.Whatsapp);
         
         // Format the message
         const message = `🎫 *New IT Support Ticket*
@@ -942,10 +965,12 @@ async function sendTicketToOnCallWhatsApp(ticketData) {
 *Submitted by:* ${ticketData.submittedBy}`;
         
         const whatsappNumber = onCallPerson.Whatsapp.replace(/[^0-9+]/g, ''); // Keep + for international format
+        console.log('📱 Formatted WhatsApp number:', whatsappNumber);
         
         // Get WhatsApp settings from database
         const whatsappSettings = await getWhatsAppSettings();
         const apiKey = whatsappSettings?.apiKey || '85e5d75676db4abb4fee2d08afed4b270e1c710cc920f015f535323e01b98066';
+        console.log('🔑 Using API Key:', apiKey.substring(0, 20) + '...');
         
         // Send via WA Sender API
         const https = require('https');
@@ -955,6 +980,8 @@ async function sendTicketToOnCallWhatsApp(ticketData) {
             to: whatsappNumber,
             text: message
         });
+        
+        console.log('📤 Sending WhatsApp message to:', whatsappNumber);
         
         const options = {
             method: 'POST',
@@ -966,6 +993,13 @@ async function sendTicketToOnCallWhatsApp(ticketData) {
         };
         
         return new Promise((resolve, reject) => {
+            // Add 30 second timeout
+            const requestTimeout = setTimeout(() => {
+                console.error('❌ REQUEST TIMEOUT - No response from WhatsApp API after 30 seconds');
+                req.destroy();
+                reject(new Error('WhatsApp API request timeout'));
+            }, 30000);
+            
             const req = https.request(apiUrl, options, (res) => {
                 let responseData = '';
                 
@@ -974,18 +1008,22 @@ async function sendTicketToOnCallWhatsApp(ticketData) {
                 });
                 
                 res.on('end', () => {
+                    clearTimeout(requestTimeout);
+                    console.log('📥 WA Sender API Response Status:', res.statusCode);
+                    console.log('📥 WA Sender API Response Data:', responseData);
+                    
                     if (res.statusCode >= 200 && res.statusCode < 300) {
-                        console.log(`Ticket sent to on-call person: ${onCallPerson.StaffName} (${onCallPerson.Whatsapp})`);
-                        console.log('WA Sender API Response:', responseData);
+                        console.log(`✅ SUCCESS! Ticket sent to on-call person: ${onCallPerson.StaffName} (${onCallPerson.Whatsapp})`);
                         resolve(responseData);
                     } else {
-                        console.error('WA Sender API Error:', res.statusCode, responseData);
-                        reject(new Error(`API returned status ${res.statusCode}`));
+                        console.error('❌ WA Sender API Error:', res.statusCode, responseData);
+                        reject(new Error(`API returned status ${res.statusCode}: ${responseData}`));
                     }
                 });
             });
             
             req.on('error', (error) => {
+                clearTimeout(requestTimeout);
                 console.error('Error sending to WA Sender API:', error);
                 reject(error);
             });
@@ -995,7 +1033,8 @@ async function sendTicketToOnCallWhatsApp(ticketData) {
         });
         
     } catch (error) {
-        console.error('Error sending ticket to WhatsApp:', error);
+        console.error('❌ CRITICAL ERROR in sendTicketToOnCallWhatsApp:', error.message);
+        console.error('Full error:', error);
         throw error;
     }
 }
@@ -1281,51 +1320,78 @@ ipcMain.handle('get-tickets', async (event, filters = {}) => {
 
 ipcMain.handle('submit-ticket', async (event, ticketData) => {
     try {
-        // Use client's local time to avoid timezone issues
-        const clientTime = new Date();
-        const localDateString = clientTime.toISOString().slice(0, 19).replace('T', ' ');
+        // Use actual local time - create Date object directly without UTC conversion
+        const now = new Date();
         
         console.log('=== TICKET SUBMISSION DEBUG ===');
-        console.log('Client Time (ISO):', clientTime.toISOString());
-        console.log('Local Date String:', localDateString);
+        console.log('Local Time:', now);
         console.log('Is On Call Submission:', ticketData.isOnCall);
+        console.log('Is On Call Type:', typeof ticketData.isOnCall);
+        console.log('Is On Call Boolean:', Boolean(ticketData.isOnCall));
         console.log('Ticket Data:', {
             pcName: ticketData.pcName,
             ipAddress: ticketData.ipAddress,
             id: ticketData.id
         });
 
-        const query = `
+        // Use parameterized query to avoid SQL injection and quoting issues
+        const request = new sql.Request();
+        request.input('TicketID', sql.NVarChar, ticketData.id);
+        request.input('Name', sql.NVarChar, ticketData.name);
+        request.input('Department', sql.NVarChar, ticketData.department);
+        request.input('Priority', sql.NVarChar, ticketData.priority);
+        request.input('IssueType', sql.NVarChar, ticketData.issueType);
+        request.input('Subject', sql.NVarChar, ticketData.subject);
+        request.input('Description', sql.NVarChar, ticketData.description);
+        request.input('Restarted', sql.NVarChar, ticketData.restarted);
+        request.input('Urgent', sql.Int, ticketData.urgent ? 1 : 0);
+        request.input('Status', sql.NVarChar, ticketData.status);
+        request.input('SubmitDate', sql.DateTime, now);
+        request.input('SubmittedBy', sql.NVarChar, ticketData.submittedBy);
+        request.input('UserRole', sql.NVarChar, ticketData.userRole);
+        request.input('PCName', sql.NVarChar, ticketData.pcName);
+        request.input('IPAddress', sql.NVarChar, ticketData.ipAddress);
+
+        const insertSql = `
             INSERT INTO Tickets (
-                TicketID, Name, Department, Priority, IssueType, 
-                Subject, Description, Restarted, Urgent, Status, 
+                TicketID, Name, Department, Priority, IssueType,
+                Subject, Description, Restarted, Urgent, Status,
                 SubmitDate, SubmittedBy, UserRole, PCName, IPAddress
             ) VALUES (
-                '${ticketData.id}', '${ticketData.name}', '${ticketData.department}', 
-                '${ticketData.priority}', '${ticketData.issueType}', '${ticketData.subject}', 
-                '${ticketData.description}', '${ticketData.restarted}', ${ticketData.urgent ? 1 : 0}, 
-                '${ticketData.status}', '${localDateString}', '${ticketData.submittedBy}', 
-                '${ticketData.userRole}', '${ticketData.pcName}', '${ticketData.ipAddress}'
+                @TicketID, @Name, @Department, @Priority, @IssueType,
+                @Subject, @Description, @Restarted, @Urgent, @Status,
+                @SubmitDate, @SubmittedBy, @UserRole, @PCName, @IPAddress
             )
         `;
+
+        const result = await request.query(insertSql);
+        console.log('Ticket submitted with local time:', now);
         
-        const result = await sql.query(query);
-        console.log('Ticket submitted with local time:', localDateString);
+        // Check if it's an on-call submission
+        console.log('Checking if on-call submission...', {
+            isOnCall: ticketData.isOnCall,
+            type: typeof ticketData.isOnCall,
+            boolean: Boolean(ticketData.isOnCall),
+            strictCheck: ticketData.isOnCall === true
+        });
         
-        // Always send to WhatsApp group "IT Help Desk"
-        try {
-            await sendTicketToWhatsAppGroup(ticketData, 'IT Help Desk');
-        } catch (whatsappError) {
-            console.error('Error sending WhatsApp group message:', whatsappError);
-            // Don't fail the ticket submission if WhatsApp fails
-        }
-        
-        // If it's an on-call submission, also send to on-call person
-        if (ticketData.isOnCall) {
+        if (ticketData.isOnCall === true || ticketData.isOnCall === 'true') {
+            // ON-CALL MODE: Send ONLY to on-call person's WhatsApp (not to group)
+            console.log('✅ ON-CALL SUBMISSION DETECTED - Sending to on-call person ONLY...');
             try {
                 await sendTicketToOnCallWhatsApp(ticketData);
+                console.log('✅ Successfully sent to on-call person');
             } catch (whatsappError) {
-                console.error('Error sending WhatsApp message to on-call person:', whatsappError);
+                console.error('❌ Error sending WhatsApp message to on-call person:', whatsappError);
+                // Don't fail the ticket submission if WhatsApp fails
+            }
+        } else {
+            // NORMAL MODE: Send to WhatsApp group "IT Help Desk"
+            console.log('ℹ️ NORMAL SUBMISSION - Sending to group WhatsApp...');
+            try {
+                await sendTicketToWhatsAppGroup(ticketData, 'IT Help Desk');
+            } catch (whatsappError) {
+                console.error('Error sending WhatsApp group message:', whatsappError);
                 // Don't fail the ticket submission if WhatsApp fails
             }
         }
@@ -1340,19 +1406,26 @@ ipcMain.handle('submit-ticket', async (event, ticketData) => {
 
 ipcMain.handle('update-ticket', async (event, ticketId, status, resolvedBy = null) => {
     try {
-        let query = `UPDATE Tickets SET Status = '${status}'`;
+        const request = new sql.Request();
+        request.input('TicketID', sql.NVarChar, ticketId);
+        request.input('Status', sql.NVarChar, status);
+
+        let updateSql = 'UPDATE Tickets SET Status = @Status';
 
         if (status === 'Resolved') {
-            const resolvedTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
-            query += `, ResolvedDate = '${resolvedTime}', ResolvedBy = '${resolvedBy}'`;
+            const resolvedTime = new Date(); // Use local time directly
+            request.input('ResolvedDate', sql.DateTime, resolvedTime);
+            request.input('ResolvedBy', sql.NVarChar, resolvedBy);
+            updateSql += ', ResolvedDate = @ResolvedDate, ResolvedBy = @ResolvedBy';
         } else if (status === 'Closed') {
-            query += `, ClosedBy = '${resolvedBy}'`;
+            request.input('ClosedBy', sql.NVarChar, resolvedBy);
+            updateSql += ', ClosedBy = @ClosedBy';
         } else {
-            query += `, ResolvedDate = NULL, ResolvedBy = NULL, ClosedBy = NULL`;
+            updateSql += ', ResolvedDate = NULL, ResolvedBy = NULL, ClosedBy = NULL';
         }
-        query += ` WHERE TicketID = '${ticketId}'`;
+        updateSql += ' WHERE TicketID = @TicketID';
         
-        await sql.query(query);
+        await request.query(updateSql);
         return { success: true };
     } catch (err) {
         return { success: false, error: err.message };

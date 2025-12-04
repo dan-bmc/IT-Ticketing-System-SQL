@@ -540,6 +540,7 @@ function updateSubmitButtonForTime() {
             submitTicketBtn.classList.add('bg-green-600', 'hover:bg-green-700');
             submitBtnText.textContent = 'Submit to On Call';
             submitTicketBtn.dataset.isOnCall = 'true';
+            console.log('✅ ON-CALL MODE ENABLED (Hour:', currentHour + ')');
         } else {
             // Between 8 AM and 5 PM - normal submission
             submitTicketBtn.classList.add('primary-button');
@@ -597,6 +598,12 @@ function initializeTicketHandlers() {
                 isOnCall: submitTicketBtn.dataset.isOnCall === 'true'
             };
 
+            console.log('=== FORM SUBMISSION DEBUG ===');
+            console.log('Submit Button isOnCall Dataset:', submitTicketBtn.dataset.isOnCall);
+            console.log('Form Data isOnCall:', formData.isOnCall);
+            console.log('Form Data isOnCall Type:', typeof formData.isOnCall);
+            console.log('================================');
+
             console.log('Submitting ticket with system info:', {
                 pcName: formData.pcName,
                 ipAddress: formData.ipAddress
@@ -637,7 +644,15 @@ function initializeTicketHandlers() {
                             departmentSelect.disabled = true;
                         }, 10);
                     }
-                    if (myTicketsTab) myTicketsTab.click();
+                    
+                    // Switch to tickets tab and reload the list
+                    if (myTicketsTab) {
+                        myTicketsTab.click();
+                        // Force reload tickets after a short delay to ensure the new ticket appears
+                        setTimeout(() => {
+                            loadTickets(true);
+                        }, 100);
+                    }
                 } else {
                     throw new Error(result.error);
                 }
