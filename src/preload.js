@@ -107,5 +107,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     // Get app version
-    getAppVersion: () => ipcRenderer.invoke('get-app-version')
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    
+    // Auto startup settings
+    getAutoStartupStatus: () => ipcRenderer.invoke('get-auto-startup-status'),
+    setAutoStartupStatus: (enabled) => ipcRenderer.invoke('set-auto-startup-status', enabled)
 });

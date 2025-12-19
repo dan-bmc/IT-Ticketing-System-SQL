@@ -71,6 +71,7 @@ const saveOnCallOrder = document.getElementById('saveOnCallOrder');
 // Filter Elements
 const ticketFilter = document.getElementById('ticketFilter');
 const departmentFilter = document.getElementById('departmentFilter');
+const ticketSearchInput = document.getElementById('ticketSearchInput');
 const ticketsSubtitle = document.getElementById('ticketsSubtitle');
 const departmentSelect = document.getElementById('department');
 const nameInput = document.getElementById('name');
@@ -705,6 +706,13 @@ function initializeTicketHandlers() {
         departmentFilter.addEventListener('change', function () {
             console.log('Department filter changed to:', this.value);
             loadTickets(true); // Pass true to reset notifications
+        });
+    }
+
+    // Search input handler
+    if (ticketSearchInput) {
+        ticketSearchInput.addEventListener('input', function () {
+            filterTicketsDisplay(this.value.toLowerCase());
         });
     }
 
@@ -1389,6 +1397,27 @@ function initializeNotificationHandlers() {
 
     if (testNotificationBtn) {
         testNotificationBtn.addEventListener('click', testNotification);
+    }
+    
+    // Auto startup toggle handler
+    const autoStartupToggle = document.getElementById('autoStartupToggle');
+    if (autoStartupToggle) {
+        autoStartupToggle.addEventListener('change', async function () {
+            try {
+                const result = await window.electronAPI.setAutoStartupStatus(this.checked);
+                if (result.success) {
+                    showSuccessMessage(`Auto startup ${this.checked ? 'enabled' : 'disabled'} successfully!`);
+                } else {
+                    // Revert toggle if failed
+                    this.checked = !this.checked;
+                    showErrorMessage('Failed to update auto startup setting');
+                }
+            } catch (error) {
+                // Revert toggle if error
+                this.checked = !this.checked;
+                showErrorMessage('Error updating auto startup: ' + error.message);
+            }
+        });
     }
 
     // WhatsApp Settings Handlers

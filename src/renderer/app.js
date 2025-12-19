@@ -320,6 +320,24 @@ function loadNotificationSettings() {
             taskbarFlashToggle.checked = taskbarFlashEnabled;
         }
     }
+    
+    // Load auto startup setting
+    loadAutoStartupSetting();
+}
+
+/**
+ * Loads auto startup setting from main process
+ */
+async function loadAutoStartupSetting() {
+    try {
+        const isEnabled = await window.electronAPI.getAutoStartupStatus();
+        const autoStartupToggle = document.getElementById('autoStartupToggle');
+        if (autoStartupToggle) {
+            autoStartupToggle.checked = isEnabled;
+        }
+    } catch (error) {
+        console.error('Error loading auto startup setting:', error);
+    }
 }
 
 /**
@@ -1278,6 +1296,12 @@ async function loadTickets(resetNotifications = false) {
             }
             updateTicketNotificationBadge();
             updateTicketsSubtitle();
+            
+            // Clear search input when tickets are loaded
+            const ticketSearchInput = document.getElementById('ticketSearchInput');
+            if (ticketSearchInput && resetNotifications) {
+                ticketSearchInput.value = '';
+            }
         } else {
             throw new Error(result.error);
         }
@@ -1310,6 +1334,81 @@ function updateTicketDurations(newTickets) {
             }
         }
     });
+}
+
+/**
+ * Filters tickets display based on search input
+ * @param {string} searchTerm - Search term to filter by (ID, subject, or description)
+ */
+function filterTicketsDisplay(searchTerm) {
+    const ticketGroups = document.querySelectorAll('.ticket-group');
+    let totalVisibleTickets = 0;
+    
+    ticketGroups.forEach(group => {
+        const ticketCards = group.querySelectorAll('[data-ticket-id]');
+        let visibleInGroup = 0;
+        
+        ticketCards.forEach(card => {
+            const ticketId = card.dataset.ticketId;
+            const ticket = tickets.find(t => (t.TicketID || t.id).toString() === ticketId);
+            
+            if (ticket) {
+                const subject = (ticket.Subject || ticket.subject || '').toLowerCase();
+                const description = (ticket.Description || ticket.description || '').toLowerCase();
+                const ticketIdStr = (ticket.TicketID || ticket.id || '').toString().toLowerCase();
+                const department = (ticket.Department || ticket.department || '').toLowerCase();
+                const name = (ticket.Name || ticket.name || '').toLowerCase();
+                
+                const matches = !searchTerm || 
+                    ticketIdStr.includes(searchTerm) ||
+                    subject.includes(searchTerm) ||
+                    description.includes(searchTerm) ||
+                    department.includes(searchTerm) ||
+                    name.includes(searchTerm);
+                
+                if (matches) {
+                    card.style.display = '';
+                    visibleInGroup++;
+                    totalVisibleTickets++;
+                } else {
+                    card.style.display = 'none';
+                }
+            }
+        });
+        
+        // Update group header count
+        const groupHeader = group.querySelector('h4');
+        if (groupHeader) {
+            const groupName = groupHeader.textContent.split('(')[0].trim();
+            groupHeader.innerHTML = `${groupName} <span class="ml-1.5 text-gray-600">(${visibleInGroup})</span>`;
+        }
+        
+        // Hide group if no visible tickets
+        if (visibleInGroup === 0) {
+            group.style.display = 'none';
+        } else {
+            group.style.display = '';
+        }
+    });
+    
+    // Show/hide "no tickets" message
+    const noTicketsMessage = document.getElementById('noTickets');
+    if (totalVisibleTickets === 0 && tickets.length > 0) {
+        if (noTicketsMessage) {
+            noTicketsMessage.style.display = 'block';
+            noTicketsMessage.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-400" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <p class="mt-2">No tickets match your search</p>
+                <p class="text-xs text-gray-400 mt-1">Try different keywords or clear the search</p>
+            `;
+        }
+    } else if (noTicketsMessage) {
+        noTicketsMessage.style.display = 'none';
+    }
 }
 
 /**

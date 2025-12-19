@@ -15,6 +15,12 @@ const { networkInterfaces } = require('os');
 // ============================================================================
 app.setAppUserModelId('IT Help Desk');
 
+// Auto startup configuration
+app.setLoginItemSettings({
+    openAtLogin: true,
+    openAsHidden: true
+});
+
 // Configure auto-updater
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
@@ -244,6 +250,44 @@ async function saveWhatsAppSettings(settings) {
         console.error('Error saving WhatsApp settings:', error);
         throw error;
     }
+}
+
+/**
+ * Get WhatsApp API settings from the database
+ */
+async function getWhatsAppSettings() {
+    try {
+        const pool = await sql.connect(dbConfig);
+        const result = await pool.request().query(`
+            SELECT TOP 1 apiKey, phoneNumber
+            FROM WhatsAppSettings
+        `);
+        return result.recordset[0];
+    } catch (error) {
+        console.error('Error getting WhatsApp settings:', error);
+        return null;
+    }
+}
+
+// ============================================================================
+// AUTO STARTUP FUNCTIONS
+// ============================================================================
+
+/**
+ * Get auto startup status
+ */
+function getAutoStartupStatus() {
+    return app.getLoginItemSettings().openAtLogin;
+}
+
+/**
+ * Set auto startup status
+ */
+function setAutoStartupStatus(enabled) {
+    app.setLoginItemSettings({
+        openAtLogin: enabled,
+        openAsHidden: true
+    });
 }
 
 /**
@@ -2109,6 +2153,19 @@ ipcMain.handle('test-whatsapp-connection', async (event, apiKey, phoneNumber) =>
     } catch (err) {
         return { success: false, error: err.message };
     }
+});
+
+// ============================================================================
+// IPC HANDLERS - AUTO STARTUP
+// ============================================================================
+
+ipcMain.handle('get-auto-startup-status', () => {
+    return getAutoStartupStatus();
+});
+
+ipcMain.handle('set-auto-startup-status', (event, enabled) => {
+    setAutoStartupStatus(enabled);
+    return { success: true };
 });
 
 // ============================================================================
