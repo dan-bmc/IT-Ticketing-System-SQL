@@ -18,23 +18,18 @@ module.exports = {
     publisherName: "IT Help Desk"
   },
   nsis: {
-    oneClick: false,
+    oneClick: true,
     perMachine: false,
-    allowToChangeInstallationDirectory: true,
-    deleteAppDataOnUninstall: false
+    allowToChangeInstallationDirectory: false,
+    deleteAppDataOnUninstall: false,
+    allowElevation: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    runAfterFinish: true
   },
   compression: "normal",
   buildVersion: "1.0.0",
-  // Skip unpacked directory to save space
   artifactBuildCompleted: null,
-  removePackageScripts: true,
-  npmRebuild: false,
-  nsis: {
-    oneClick: false,
-    perMachine: false,
-    allowToChangeInstallationDirectory: true,
-    deleteAppDataOnUninstall: false
-  },
   removePackageScripts: true,
   npmRebuild: false,
   files: [

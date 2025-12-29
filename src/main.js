@@ -21,11 +21,12 @@ app.setLoginItemSettings({
     openAsHidden: true
 });
 
-// Configure auto-updater
-autoUpdater.autoDownload = false;
-autoUpdater.autoInstallOnAppQuit = true;
+// Configure auto-updater for silent updates
+autoUpdater.autoDownload = true;  // Automatically download updates
+autoUpdater.autoInstallOnAppQuit = true;  // Install when app quits
 autoUpdater.allowDowngrade = false;
 autoUpdater.allowPrerelease = false;
+autoUpdater.logger = null;  // Disable update logs to user
 autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'dan-bmc',
@@ -105,8 +106,17 @@ const dbConfig = {
 
 // Images directory configuration
 const imagesDir = path.join('\\\\192.168.1.254\\Users\\Public\\it helpdesk');
-if (!fsSync.existsSync(imagesDir)) {
-    fsSync.mkdirSync(imagesDir, { recursive: true });
+
+// Safely create images directory with error handling
+try {
+    if (!fsSync.existsSync(imagesDir)) {
+        fsSync.mkdirSync(imagesDir, { recursive: true });
+        console.log('Images directory created successfully:', imagesDir);
+    }
+} catch (error) {
+    console.warn('Warning: Could not create images directory:', error.message);
+    console.warn('Image saving functionality may be limited');
+    // Continue app startup even if directory creation fails
 }
 
 // ============================================================================
